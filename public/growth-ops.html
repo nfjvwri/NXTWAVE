@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Growth Control Center | NxtWave Ops</title>
+  
+  <!-- React, Tailwind & Recharts Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body { 
+      background: #030712; 
+      color: #F9FAFB; 
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+    }
+    .bento-card { 
+      background: rgba(15, 23, 42, 0.7); 
+      backdrop-filter: blur(16px); 
+      border: 1px solid rgba(255, 255, 255, 0.08); 
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } = window.Recharts || {};
+
+    function GrowthOpsDashboard() {
+      const [tab, setTab] = useState('leads'); // 'leads', 'cr-crm', 'analytics', 'budget-planner', 'cr-generator', 'outreach'
+      const [db, setDb] = useState([]);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filterRole, setFilterRole] = useState('all'); // 'all', 'cr', 'student'
+
+      // Dynamic Budget & CAC Planner State
+      const [plannedBudget, setPlannedBudget] = useState(2000);
+      const [targetSignupsGoal, setTargetSignupsGoal] = useState(500);
+
+      // CR Outreach Link Generator State
+      const [crData, setCrData] = useState({ crName: '', college: '', branch: '', section: 'Section A', phone: '' });
+      const [generatedCrLink, setGeneratedCrLink] = useState('');
+      const [copySuccess, setCopySuccess] = useState(false);
+
+      // Club Email Template Customizer State
+      const [clubData, setClubData] = useState({ clubName: 'IEEE Student Branch', collegeName: 'Ramaiah Institute of Technology', presidentName: 'Akash' });
+      const [emailCopied, setEmailCopied] = useState(false);
+
+      // CR Manager Roster State
+      const [crRoster, setCrRoster] = useState([
+        { id: 1, name: 'Siddharth M.', college: 'RVCE', branch: 'CSE', signups: 28, target: 30, phone: '9876543210' },
+        { id: 2, name: 'Ananya R.', college: 'PES University', branch: 'ECE', signups: 34, target: 30, phone: '9876543211' },
+        { id: 3, name: 'Kiran Kumar', college: 'MSRIT', branch: 'Mechanical', signups: 19, target: 30, phone: '9876543212' }
+      ]);
+
+      useEffect(() => {
+        const syncDB = () => {
+          const stored = JSON.parse(localStorage.getItem('nxt_db') || '[]');
+          setDb(stored);
+        };
+        syncDB();
+        window.addEventListener('storage', syncDB);
+        return () => window.removeEventListener('storage', syncDB);
+      }, []);
+
+      // Dynamic Real-Time Calculated Metrics
+      const baseSimulationCount = 412;
+      const totalSignups = baseSimulationCount + db.length;
+      const actualCAC = totalSignups > 0 ? (plannedBudget / totalSignups).toFixed(2) : 0;
+      const targetCAC = (plannedBudget / targetSignupsGoal).toFixed(2);
+
+      const crCountInDB = db.filter(item => item.isCR).length;
+      const totalCrCount = crRoster.length + crCountInDB;
+
+      // Filtered Leads
+      const filteredLeads = db.filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.college.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.branch.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.whatsapp.includes(searchTerm);
+        const matchesRole = filterRole === 'all' ? true : (filterRole === 'cr' ? item.isCR : !item.isCR);
+        return matchesSearch && matchesRole;
+      });
+
+      // Dynamic Recharts Data
+      const velocityData = [
+        { day: 'Day 1', signups: 45 },
+        { day: 'Day 2', signups: 110 },
+        { day: 'Day 3', signups: 205 },
+        { day: 'Day 4', signups: 310 },
+        { day: 'Day 5', signups: totalSignups }
+      ];
+
+      const channelDistribution = [
+        { channel: 'Class Reps (CRs)', count: 240 + (crCountInDB * 10), color: '#10B981' },
+        { channel: 'Peer Referrals', count: 110 + db.length, color: '#06B6D4' },
+        { channel: 'Tech Club Partners', count: 85, color: '#3B82F6' },
+        { channel: 'Retargeting Ads', count: 35, color: '#8B5CF6' }
+      ];
+
+      const handleGenerateCrLink = (e) => {
+        e.preventDefault();
+        if (!crData.crName || !crData.college) return;
+        const crCode = `CR-${crData.crName.substring(0,3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const link = `${window.location.origin}/index.html?ref=${crCode}&cr=${encodeURIComponent(crData.crName)}&col=${encodeURIComponent(crData.college)}`;
+        
+        setGeneratedCrLink(link);
+        setCopySuccess(false);
+
+        // Append to local CR roster
+        setCrRoster(prev => [
+          ...prev,
+          { id: Date.now(), name: crData.crName, college: crData.college, branch: crData.branch || 'Engineering', signups: 1, target: 30, phone: crData.phone || '9876543210' }
+        ]);
+      };
+
+      const copyToClipboard = (text, setFlag) => {
+        navigator.clipboard.writeText(text);
+        setFlag(true);
+        setTimeout(() => setFlag(false), 2500);
+      };
+
+      const exportCSV = () => {
+        if (db.length === 0) {
+          alert("No new local registrations recorded in browser memory yet. Complete a test registration on index.html first!");
+          return;
+        }
+        let csvContent = "data:text/csv;charset=utf-8,ID,Name,College,Branch,Section,WhatsApp,IsCR,Code\n";
+        db.forEach((row, index) => {
+          csvContent += `${index + 1},"${row.name}","${row.college}","${row.branch}","${row.section}","${row.whatsapp}",${row.isCR ? 'Yes' : 'No'},"${row.code}"\n`;
+        });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "nxtwave_growth_registrations.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      const clearDatabase = () => {
+        if (confirm("Are you sure you want to clear all locally saved registrations?")) {
+          localStorage.removeItem('nxt_db');
+          setDb([]);
+        }
+      };
+
+      const formattedEmailText = `Subject: Collaboration Proposal: NxtWave x ${clubData.clubName} AI Masterclass\n\nDear ${clubData.presidentName},\n\nI hope this email finds you well. I am reaching out from NxtWave CCBP 4.0 Academy regarding an exclusive workshop collaboration for members of ${clubData.clubName} at ${clubData.collegeName}.\n\nWe are hosting a free 60-Minute AI App Building Workshop where engineering students build real-world OpenAI API applications tailored for their discipline. We would love to co-brand this initiative with ${clubData.clubName}.\n\nIn return, all participating members receive verified AI Readiness Certificates and priority placement access to CCBP hiring partner drives.\n\nLooking forward to partnering with your team.\n\nBest regards,\nGrowth Intern Team, NxtWave`;
+
+      return (
+        <div className="min-h-screen pb-12">
+          
+          {/* Header Bar */}
+          <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-xl px-6 py-4 sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-mono font-black text-gray-950 text-xs shadow-lg">
+                  OPS
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-white">Growth Control Center</span>
+                  <span className="block text-[10px] text-emerald-400 font-mono">Live Campaign CRM & Operations Hub</span>
+                </div>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex bg-gray-900 p-1 rounded-xl border border-gray-800 text-xs overflow-x-auto max-w-full">
+                <button onClick={() => setTab('leads')} className={`px-3 py-1.5 rounded-lg font-semibold transition ${tab === 'leads' ? 'bg-emerald-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  👥 Leads CRM ({db.length})
+                </button>
+                <button onClick={() => setTab('cr-crm')} className={`px-3 py-1.5 rounded-lg font-semibold transition ${tab === 'cr-crm' ? 'bg-emerald-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  🏆 CR Roster ({totalCrCount})
+                </button>
+                <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-lg font-semibold transition ${tab === 'analytics' ? 'bg-emerald-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  📊 Analytics
+                </button>
+                <button onClick={() => setTab('budget-planner')} className={`px-3 py-1.5 rounded-lg font-semibold transition ${tab === 'budget-planner' ? 'bg-emerald-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  🧮 CAC Calculator
+                </button>
+                <button onClick={() => setTab('cr-generator')} className={`px-3 py-1.5 rounded-lg font-semibold transition ${tab === 'cr-generator' ? 'bg-emerald-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  ⚡ CR Linker
+                </button>
+                <button onClick={() => setTab('outreach')} className={`px-3 py-1.5 rounded-lg font-semibold transition ${tab === 'outreach' ? 'bg-emerald-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  ✉️ Club Email
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button onClick={exportCSV} className="bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-md">
+                  📥 Export CSV
+                </button>
+                <button onClick={clearDatabase} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-2.5 py-1.5 rounded-xl text-xs transition">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+            
+            {/* Real-time KPI Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bento-card p-5 rounded-2xl">
+                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">Total Campaign Signups</span>
+                <p className="text-2xl font-black text-emerald-400 mt-1">{totalSignups} <span className="text-xs text-gray-500 font-normal">/ {targetSignupsGoal} Target</span></p>
+                <div className="w-full bg-gray-900 h-1.5 rounded-full overflow-hidden mt-2 border border-gray-800">
+                  <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${Math.min(100, (totalSignups / targetSignupsGoal) * 100)}%` }}></div>
+                </div>
+              </div>
+
+              <div className="bento-card p-5 rounded-2xl">
+                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">Campaign Budget</span>
+                <p className="text-2xl font-black text-cyan-400 mt-1">₹{plannedBudget.toLocaleString()}</p>
+                <span className="text-[10px] text-gray-400 font-mono mt-1 block">Allocated Spend Pool</span>
+              </div>
+
+              <div className="bento-card p-5 rounded-2xl">
+                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">Current CAC / CPL</span>
+                <p className="text-2xl font-black text-purple-400 mt-1">₹{actualCAC} <span className="text-xs font-normal text-gray-400">/ lead</span></p>
+                <span className="text-[10px] text-emerald-400 font-mono mt-1 block">Target CAC: ₹{targetCAC}</span>
+              </div>
+
+              <div className="bento-card p-5 rounded-2xl">
+                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">Onboarded Class Reps</span>
+                <p className="text-2xl font-black text-amber-400 mt-1">{totalCrCount} <span className="text-xs text-gray-500 font-normal">CRs</span></p>
+                <span className="text-[10px] text-amber-300 font-mono mt-1 block">Avg {(totalSignups / Math.max(1, totalCrCount)).toFixed(0)} Signups / CR</span>
+              </div>
+            </div>
+
+            {/* TAB 1: LIVE LEADS SEARCH & CRM */}
+            {tab === 'leads' && (
+              <div className="bento-card p-6 rounded-3xl space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-800 pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Live Student Leads Manager</h3>
+                    <p className="text-xs text-gray-400">Search, filter, and execute 1-click WhatsApp broadcasts for registered students.</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <input 
+                      type="text" 
+                      placeholder="Search name, college, phone..." 
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 w-full sm:w-64"/>
+
+                    <select 
+                      value={filterRole}
+                      onChange={e => setFilterRole(e.target.value)}
+                      className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
+                      <option value="all">All Roles</option>
+                      <option value="cr">Class Reps Only</option>
+                      <option value="student">Standard Students</option>
+                    </select>
+                  </div>
+                </div>
+
+                {filteredLeads.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-gray-300">
+                      <thead className="bg-gray-950 text-gray-400 uppercase font-mono text-[10px]">
+                        <tr>
+                          <th className="p-3">#</th>
+                          <th className="p-3">Student Name</th>
+                          <th className="p-3">College</th>
+                          <th className="p-3">Branch & Sec</th>
+                          <th className="p-3">WhatsApp</th>
+                          <th className="p-3">Role</th>
+                          <th className="p-3 text-right">Direct Broadcast</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-800/80">
+                        {filteredLeads.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-900/50">
+                            <td className="p-3 font-mono text-gray-500">{idx + 1}</td>
+                            <td className="p-3 font-bold text-white">{item.name}</td>
+                            <td className="p-3 text-gray-400">{item.college}</td>
+                            <td className="p-3 font-mono text-cyan-400">{item.branch} ({item.section})</td>
+                            <td className="p-3 font-mono text-emerald-400">{item.whatsapp}</td>
+                            <td className="p-3">
+                              {item.isCR ? (
+                                <span className="bg-amber-500/20 text-amber-400 text-[10px] px-2 py-0.5 rounded font-bold">Class Rep</span>
+                              ) : (
+                                <span className="bg-gray-800 text-gray-400 text-[10px] px-2 py-0.5 rounded">Student</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right">
+                              <a 
+                                href={`https://api.whatsapp.com/send?phone=91${item.whatsapp}&text=${encodeURIComponent(`Hey ${item.name}! Reminder for NxtWave's free 60-Minute AI App Building Masterclass. Join the official workshop group here: https://chat.whatsapp.com/NxtWaveAISprint2026`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-[11px] transition">
+                                Send WhatsApp 💬
+                              </a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-xs text-gray-500 border border-dashed border-gray-800 rounded-2xl">
+                    No matching student leads found in local storage memory. Complete a test registration in index.html to populate rows!
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: CLASS REP (CR) ROSTER CRM */}
+            {tab === 'cr-crm' && (
+              <div className="bento-card p-6 rounded-3xl space-y-6">
+                <div className="flex justify-between items-center border-b border-gray-800 pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Class Representative (CR) Onboarding CRM</h3>
+                    <p className="text-xs text-gray-400">Track section signup milestones (30 signups/section unlock goal).</p>
+                  </div>
+                  <button onClick={() => setTab('cr-generator')} className="bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold px-3.5 py-1.5 rounded-xl text-xs transition">
+                    + Onboard New CR
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {crRoster.map(cr => (
+                    <div key={cr.id} className="bg-gray-950 p-5 rounded-2xl border border-gray-800 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{cr.name}</h4>
+                          <p className="text-xs text-gray-400">{cr.college} ({cr.branch})</p>
+                        </div>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${cr.signups >= cr.target ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                          {cr.signups >= cr.target ? '✓ Unlocked' : 'In Progress'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-gray-400">Section Signups:</span>
+                          <span className="font-mono text-emerald-400 font-bold">{cr.signups} / {cr.target}</span>
+                        </div>
+                        <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden border border-gray-800">
+                          <div className="bg-gradient-to-r from-amber-400 to-emerald-400 h-full" style={{ width: `${Math.min(100, (cr.signups / cr.target) * 100)}%` }}></div>
+                        </div>
+                      </div>
+
+                      <a 
+                        href={`https://api.whatsapp.com/send?phone=91${cr.phone}&text=${encodeURIComponent(`Hey ${cr.name}! Your section is currently at ${cr.signups}/30 signups. Invite a few more classmates to unlock the section AI Readiness Certificates!`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-center bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded-xl text-xs transition border border-gray-700">
+                        Ping CR on WhatsApp 💬
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: FUNNEL ANALYTICS & VELOCITY */}
+            {tab === 'analytics' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  <div className="md:col-span-8 bento-card p-6 rounded-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Registration Growth Velocity</h3>
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-mono px-2.5 py-0.5 rounded border border-emerald-500/20">Live Sync Active</span>
+                    </div>
+                    <div className="h-64">
+                      {ResponsiveContainer && AreaChart && (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={velocityData}>
+                            <XAxis dataKey="day" stroke="#4B5563" fontSize={11} />
+                            <YAxis stroke="#4B5563" fontSize={11} />
+                            <Tooltip contentStyle={{ background: '#111827', border: '1px solid #374151' }} />
+                            <Area type="monotone" dataKey="signups" stroke="#10B981" fill="#10B981" fillOpacity={0.15} strokeWidth={2} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-4 bento-card p-6 rounded-2xl">
+                    <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-4">Channel Volume Breakdown</h3>
+                    <div className="h-64">
+                      {ResponsiveContainer && BarChart && (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={channelDistribution} layout="vertical">
+                            <XAxis type="number" stroke="#4B5563" fontSize={11} />
+                            <YAxis dataKey="channel" type="category" stroke="#4B5563" fontSize={10} width={90} />
+                            <Tooltip contentStyle={{ background: '#111827', border: '1px solid #374151' }} />
+                            <Bar dataKey="count" radius={[0, 6, 6, 0]}>
+                              {channelDistribution.map((e, i) => <Cell key={i} fill={e.color} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: INTERACTIVE BUDGET & CAC CALCULATOR */}
+            {tab === 'budget-planner' && (
+              <div className="bento-card p-8 rounded-3xl max-w-4xl mx-auto space-y-6">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Interactive Budget & CAC Scenario Planner</h2>
+                  <p className="text-xs text-gray-400">Adjust spend caps and signup targets to simulate expected Cost Per Lead (CPL):</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6 bg-gray-950 p-6 rounded-2xl border border-gray-800">
+                    <div>
+                      <div className="flex justify-between text-xs font-bold mb-2">
+                        <span className="text-gray-300">Total Campaign Budget:</span>
+                        <span className="text-cyan-400 font-mono text-sm">₹{plannedBudget.toLocaleString()}</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="500" 
+                        max="10000" 
+                        step="500" 
+                        value={plannedBudget} 
+                        onChange={e => setPlannedBudget(Number(e.target.value))}
+                        className="w-full accent-cyan-500 cursor-pointer"/>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs font-bold mb-2">
+                        <span className="text-gray-300">Target Signups Goal:</span>
+                        <span className="text-emerald-400 font-mono text-sm">{targetSignupsGoal} Students</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="100" 
+                        max="2000" 
+                        step="50" 
+                        value={targetSignupsGoal} 
+                        onChange={e => setTargetSignupsGoal(Number(e.target.value))}
+                        className="w-full accent-emerald-500 cursor-pointer"/>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-950 p-6 rounded-2xl border border-gray-800 flex flex-col justify-between space-y-4">
+                    <div>
+                      <span className="text-[10px] font-mono text-gray-400 uppercase block">Simulated Unit Metrics</span>
+                      <p className="text-xs text-gray-400 mt-1">Cost Per Lead (Target CAC):</p>
+                      <p className="text-4xl font-black text-purple-400 font-mono mt-1">₹{targetCAC}</p>
+                    </div>
+
+                    <div className="bg-slate-900 p-4 rounded-xl border border-gray-800 space-y-1 text-xs">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Current Total Signups:</span>
+                        <strong className="text-white font-mono">{totalSignups}</strong>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>Effective Real-time CAC:</span>
+                        <strong className="text-emerald-400 font-mono">₹{actualCAC}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: CR LINK GENERATOR */}
+            {tab === 'cr-generator' && (
+              <div className="bento-card p-8 rounded-3xl max-w-3xl mx-auto space-y-6">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Generate Custom Class Rep (CR) Pass Link</h2>
+                  <p className="text-xs text-gray-400">Create personalized tracking links to give to Class Reps for WhatsApp group broadcasts.</p>
+                </div>
+
+                <form onSubmit={handleGenerateCrLink} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">CR Full Name</label>
+                      <input type="text" required placeholder="Siddharth M." value={crData.crName} onChange={e => setCrData({...crData, crName: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"/>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">College Name</label>
+                      <input type="text" required placeholder="Ramaiah Institute of Tech" value={crData.college} onChange={e => setCrData({...crData, college: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"/>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Branch</label>
+                      <input type="text" placeholder="CSE / ECE / Mech / Medical Elec" value={crData.branch} onChange={e => setCrData({...crData, branch: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"/>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">WhatsApp Phone</label>
+                      <input type="tel" placeholder="9876543210" value={crData.phone} onChange={e => setCrData({...crData, phone: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"/>
+                    </div>
+                  </div>
+
+                  <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20">
+                    Generate CR Tracking Link & Onboard ⚡
+                  </button>
+                </form>
+
+                {generatedCrLink && (
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 space-y-3">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Generated CR Custom Pass</span>
+                    <input type="text" readOnly value={generatedCrLink} className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-cyan-300 font-mono"/>
+                    
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => copyToClipboard(generatedCrLink, setCopySuccess)}
+                        className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2.5 rounded-xl text-xs transition border border-gray-700">
+                        {copySuccess ? '✓ Link Copied!' : 'Copy Tracking Link 🔗'}
+                      </button>
+                      <a 
+                        href={`https://api.whatsapp.com/send?phone=91${crData.phone}&text=${encodeURIComponent(`Hey ${crData.crName}! Here is your official Class Rep link for NxtWave's AI App Building Masterclass: ${generatedCrLink} . Share this with your section group so your classmates reach 30 signups and unlock AI Certificates!`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition">
+                        WhatsApp to CR 💬
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 6: CLUB OUTREACH */}
+            {tab === 'outreach' && (
+              <div className="bento-card p-8 rounded-3xl max-w-3xl mx-auto space-y-6">
+                <div>
+                  <h2 className="text-lg font-bold text-white">College Tech Club Outreach Pitch Generator</h2>
+                  <p className="text-xs text-gray-400">Generate customized email pitches to send to IEEE/ISTE/Coding Club presidents.</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Club Name</label>
+                    <input type="text" value={clubData.clubName} onChange={e => setClubData({...clubData, clubName: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"/>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">College</label>
+                    <input type="text" value={clubData.collegeName} onChange={e => setClubData({...clubData, collegeName: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"/>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">President Name</label>
+                    <input type="text" value={clubData.presidentName} onChange={e => setClubData({...clubData, presidentName: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"/>
+                  </div>
+                </div>
+
+                <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 space-y-3 font-mono text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {formattedEmailText}
+                </div>
+
+                <button 
+                  onClick={() => copyToClipboard(formattedEmailText, setEmailCopied)}
+                  className="w-full bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-cyan-500/20">
+                  {emailCopied ? '✓ Email Template Copied to Clipboard!' : 'Copy Full Email Text to Clipboard 📋'}
+                </button>
+              </div>
+            )}
+
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<GrowthOpsDashboard />);
+  </script>
+</body>
+</html>

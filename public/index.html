@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build Your First AI App in 60 Mins | NxtWave CCBP 4.0</title>
+  
+  <!-- React & CDN Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: { 500: '#10B981', 400: '#34D399', accent: '#06B6D4', dark: '#030712' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { background: #030712; color: #F9FAFB; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+    /* Animated Dynamic Mesh Gradient Background */
+    .mesh-gradient {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: -1;
+      background: radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.15) 0%, transparent 45%),
+                  radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.15) 0%, transparent 45%),
+                  radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
+      filter: blur(60px);
+      animation: pulseMesh 12s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseMesh {
+      0% { transform: scale(1) rotate(0deg); }
+      100% { transform: scale(1.1) rotate(5deg); }
+    }
+
+    /* Glassmorphism Cards */
+    .bento-card {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+    }
+
+    .bento-card:hover {
+      border-color: rgba(52, 211, 153, 0.3);
+      box-shadow: 0 0 30px -5px rgba(16, 185, 129, 0.2);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #34D399 0%, #06B6D4 50%, #60A5FA 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Toast Slide Animation */
+    @keyframes slideIn {
+      from { transform: translateY(100%) scale(0.9); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .toast-anim { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  </style>
+</head>
+<body>
+  <div class="mesh-gradient"></div>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // 7-Day Dynamic AI Quiz Schedule
+    const DAILY_QUIZZES = [
+      {
+        day: "Sunday",
+        q: "Day 7 Challenge: What is 'temperature' in OpenAI API parameters used for?",
+        options: ["Controlling randomness / creativity", "Setting CPU execution speed", "Defining memory size", "Limiting response token cost"],
+        correct: "Controlling randomness / creativity"
+      },
+      {
+        day: "Monday",
+        q: "Day 1 Challenge: Which API endpoint handles chat completions in GPT-4o?",
+        options: ["/v1/chat/completions", "/v1/images/generate", "/v1/audio/transcribe", "/v1/embeddings"],
+        correct: "/v1/chat/completions"
+      },
+      {
+        day: "Tuesday",
+        q: "Day 2 Challenge: What does RAG stand for in modern AI architecture?",
+        options: ["Retrieval-Augmented Generation", "Random-Access Generation", "Rapid-API Gateway", "Recurrent Automated Grouping"],
+        correct: "Retrieval-Augmented Generation"
+      },
+      {
+        day: "Wednesday",
+        q: "Day 3 Challenge: Which framework is widely used to chain LLM prompts?",
+        options: ["LangChain", "TensorFlow.js", "Django", "TailwindCSS"],
+        correct: "LangChain"
+      },
+      {
+        day: "Thursday",
+        q: "Day 4 Challenge: What is the primary role of embeddings in vector databases?",
+        options: ["Converting text into semantic numerical vectors", "Compressing image file sizes", "Encrypting database API keys", "Caching HTTP web requests"],
+        correct: "Converting text into semantic numerical vectors"
+      },
+      {
+        day: "Friday",
+        q: "Day 5 Challenge: Which parameter limits the max output length of a response?",
+        options: ["max_tokens", "temperature_limit", "top_p_cutoff", "frequency_penalty"],
+        correct: "max_tokens"
+      },
+      {
+        day: "Saturday",
+        q: "Day 6 Challenge: What is 'Zero-Shot Prompting'?",
+        options: ["Asking the model to solve a task with no previous examples", "Training a neural network from scratch", "Running an LLM without internet access", "Executing code with zero latency"],
+        correct: "Asking the model to solve a task with no previous examples"
+      }
+    ];
+
+    function App() {
+      const [loading, setLoading] = useState(true);
+      const [layoutMode, setLayoutMode] = useState('bento');
+      const [formData, setFormData] = useState({ name: '', college: '', branch: '', section: 'Sec A', whatsapp: '', isCR: false });
+      const [user, setUser] = useState(null);
+
+      // Branch Idea Generator State
+      const [selectedBranch, setSelectedBranch] = useState('CSE / IT');
+
+      // Inter-College Leaderboard State
+      const [collegesLeaderboard, setCollegesLeaderboard] = useState([
+        { rank: 1, name: "RV College of Engineering (RVCE)", signups: 142, points: 14200, badge: "🔥 Campus Leader" },
+        { rank: 2, name: "Ramaiah Institute of Technology (RIT)", signups: 128, points: 12800, badge: "⚡ Top Contender" },
+        { rank: 3, name: "BMS College of Engineering (BMSCE)", signups: 115, points: 11500, badge: "🚀 Rising Star" },
+        { rank: 4, name: "PES University", signups: 94, points: 9400, badge: "Active" },
+        { rank: 5, name: "Dayananda Sagar College (DSCE)", signups: 76, points: 7600, badge: "Active" }
+      ]);
+
+      // Countdown Timer & Q&A State
+      const [timeLeft, setTimeLeft] = useState({ days: 2, hours: 14, minutes: 31, seconds: 58 });
+      const [qaList, setQaList] = useState([
+        { name: "Rahul S.", college: "RVCE", q: "Will we get access to API credits for building during the session?" },
+        { name: "Anish M.", college: "MSRIT", q: "Can non-python developers deploy using Node.js?" }
+      ]);
+      const [newQuestion, setNewQuestion] = useState('');
+
+      // VIRAL GOAL: 500 REGISTRATIONS TARGET STATE
+      const TOTAL_TARGET_SEATS = 500;
+      const [registeredCount, setRegisteredCount] = useState(412);
+      const [sectionSignups, setSectionSignups] = useState(18);
+
+      // Certificate Preview Modal State
+      const [showCertModal, setShowCertModal] = useState(false);
+      const [previewName, setPreviewName] = useState('Atreyee Bhattacharyya');
+
+      // Post-Registration WhatsApp Group Auto-Redirect Modal State
+      const [showWpGroupModal, setShowWpGroupModal] = useState(false);
+
+      // Scarcity Counter & Toasts
+      const [currentToast, setCurrentToast] = useState(null);
+      const [shareNotice, setShareNotice] = useState(null);
+
+      // Persistent Brownie Points & Daily Quiz States
+      const [browniePoints, setBrowniePoints] = useState(50);
+      const [quizAnsweredToday, setQuizAnsweredToday] = useState(false);
+      const [selectedOption, setSelectedOption] = useState('');
+      const [streak, setStreak] = useState(1);
+
+      // Modal State for Reward Claims
+      const [activeModal, setActiveModal] = useState(null);
+
+      const branchIdeas = {
+        "CSE / IT": { title: "Automated Resume Parser & LLM Matcher", desc: "Extracts technical skills from candidate PDFs and matches them against job descriptions using OpenAI API." },
+        "ECE / Telecommunication": { title: "Smart Edge AI Signal Classifier", desc: "Analyzes telemetry log patterns and categorizes sensor array signals via structured LLM prompt outputs." },
+        "EEE / Power Systems": { title: "AI Energy Grid Anomaly Predictor", desc: "Parses power distribution telemetry data in real time to flag grid voltage spikes automatically." },
+        "Mechanical / Automation": { title: "Industrial Predictive Maintenance Assistant", desc: "Scans machinery defect reports and auto-generates step-by-step repair inspection workflows." },
+        "Medical Electronics / Biotech": { title: "AI Telemedicine Patient Triage Engine", desc: "Parses patient symptom descriptions and maps them to priority triage categories and doctor specialties." },
+        "Civil / Infrastructure": { title: "Structural Crack & Material Inspection Summarizer", desc: "Transforms site inspection notes into automated structural compliance and safety audit reports." },
+        "Chemical / Material Tech": { title: "Polymer Formula Optimization Advisor", desc: "Queries chemical property databases to recommend optimal compound blending ratios using AI." },
+        "Aerospace / Avionics": { title: "Flight Data Log Analyzer & Alert System", desc: "Scans flight telemetry parameter logs to detect sensor drift and automate pre-flight checklist audits." },
+        "AIML / Data Science": { title: "Custom RAG Vector Search Knowledge Base", desc: "Embeds technical documentation into vector stores for instant semantic question-answering." },
+        "Cyber Security / Cloud": { title: "Automated Threat Log Summarizer & Alerting", desc: "Parses raw firewall and SIEM log streams to synthesize real-time security breach summaries." }
+      };
+
+      const socialProofList = [
+        { name: "Siddharth M.", college: "RV College of Engg (CSE)", time: "2 mins ago" },
+        { name: "Priya Sharma", college: "BMSCE (Medical Electronics)", time: "Just now" },
+        { name: "Kiran Kumar", college: "MSRIT (Mechanical)", time: "5 mins ago" },
+        { name: "Ananya R.", college: "PES University (ECE)", time: "1 min ago" }
+      ];
+
+      const todayIndex = new Date().getDay(); 
+      const todayQuiz = DAILY_QUIZZES[todayIndex];
+
+      useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 600);
+
+        const countdownInterval = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+            return { ...prev, minutes: prev.minutes > 0 ? prev.minutes - 1 : 59, seconds: 59 };
+          });
+        }, 1000);
+
+        const savedPoints = parseInt(localStorage.getItem('nxt_brownie_points') || '50');
+        const savedQuizDate = localStorage.getItem('nxt_last_quiz_date');
+        const savedStreak = parseInt(localStorage.getItem('nxt_quiz_streak') || '1');
+        const todayStr = new Date().toDateString();
+
+        setBrowniePoints(savedPoints);
+        setStreak(savedStreak);
+
+        if (savedQuizDate === todayStr) {
+          setQuizAnsweredToday(true);
+        }
+
+        let toastIdx = 0;
+        const toastInterval = setInterval(() => {
+          setCurrentToast(socialProofList[toastIdx % socialProofList.length]);
+          toastIdx++;
+          setTimeout(() => setCurrentToast(null), 3500);
+        }, 8000);
+
+        return () => {
+          clearTimeout(timer);
+          clearInterval(countdownInterval);
+          clearInterval(toastInterval);
+        };
+      }, []);
+
+      const updatePoints = (added) => {
+        setBrowniePoints(prev => {
+          const updated = Math.max(0, prev + added);
+          localStorage.setItem('nxt_brownie_points', updated.toString());
+          return updated;
+        });
+      };
+
+      const handleMyntraStyleShare = (shareData) => {
+        const title = shareData?.title || "NxtWave 60-Min AI Masterclass";
+        const text = shareData?.text || `Check out this 60-Minute AI Workshop for ${selectedBranch}! Build your first AI app free.`;
+        const url = shareData?.url || `${window.location.origin}${window.location.pathname}?ref=${user ? user.code : 'NXT-SHARE'}`;
+
+        if (navigator.share) {
+          navigator.share({ title, text, url }).catch(() => {
+            copyToClipboard(url, "Share link copied to clipboard!");
+          });
+        } else {
+          copyToClipboard(url, "Share link copied to clipboard!");
+        }
+      };
+
+      const copyToClipboard = (textToCopy, message) => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(textToCopy);
+        } else {
+          const textArea = document.createElement("textarea");
+          textArea.value = textToCopy;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textArea);
+        }
+        setShareNotice(message || "Link copied to clipboard!");
+        setTimeout(() => setShareNotice(null), 3000);
+      };
+
+      const handleRedeemPerk = (cost, title, type) => {
+        if (browniePoints < cost) return;
+        
+        updatePoints(-cost);
+
+        if (type === 'pdf') {
+          const link = document.createElement('a');
+          link.href = 'prompts.pdf';
+          link.download = 'NxtWave_Top_50_AI_Placement_Prompts.pdf';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+
+        setActiveModal({
+          title,
+          cost,
+          message: type === 'pdf' 
+            ? "Your official 'Top 50 AI Resume Prompts PDF' has started downloading!" 
+            : "Slot Confirmed! Our senior NxtWave mentor will reach out on your registered WhatsApp within 24 hours."
+        });
+      };
+
+      const handleRegister = (e) => {
+        e.preventDefault();
+        if (!formData.name) return;
+        const code = formData.isCR 
+          ? `CR-${formData.name.substring(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`
+          : `NXT-${formData.name.substring(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        
+        const payload = { ...formData, code };
+        
+        const db = JSON.parse(localStorage.getItem('nxt_db') || '[]');
+        db.push(payload);
+        localStorage.setItem('nxt_db', JSON.stringify(db));
+
+        if (formData.college) {
+          setCollegesLeaderboard(prev => {
+            const exists = prev.find(c => c.name.toLowerCase().includes(formData.college.toLowerCase()));
+            if (exists) {
+              return prev.map(c => c.name === exists.name ? { ...c, signups: c.signups + 1, points: c.points + 100 } : c)
+                .sort((a, b) => b.points - a.points);
+            } else {
+              return [...prev, { rank: prev.length + 1, name: formData.college, signups: 1, points: 100, badge: "New Entrant" }]
+                .sort((a, b) => b.points - a.points);
+            }
+          });
+        }
+
+        setUser(payload);
+        setRegisteredCount(prev => Math.min(TOTAL_TARGET_SEATS, prev + 1));
+        setSectionSignups(prev => prev + 1);
+        updatePoints(formData.isCR ? 100 : 50);
+
+        // VIRAL AUTO-REDIRECT TO WHATSAPP COMMUNITY GROUP
+        setShowWpGroupModal(true);
+      };
+
+      const handleDailyQuizSubmit = (option) => {
+        if (quizAnsweredToday) return;
+        setSelectedOption(option);
+        setQuizAnsweredToday(true);
+
+        const todayStr = new Date().toDateString();
+        localStorage.setItem('nxt_last_quiz_date', todayStr);
+
+        if (option === todayQuiz.correct) {
+          updatePoints(50);
+          const newStreak = streak + 1;
+          setStreak(newStreak);
+          localStorage.setItem('nxt_quiz_streak', newStreak.toString());
+        }
+      };
+
+      const handleAddQuestion = (e) => {
+        e.preventDefault();
+        if (!newQuestion.trim()) return;
+        setQaList(prev => [
+          { name: user ? user.name : 'Registered Student', college: user ? user.college : 'Engineering Student', q: newQuestion },
+          ...prev
+        ]);
+        setNewQuestion('');
+        updatePoints(25);
+      };
+
+      if (loading) {
+        return (
+          <div className="h-screen w-screen flex flex-col items-center justify-center bg-gray-950 text-white space-y-4">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-brand-500 to-brand-accent animate-spin opacity-75 blur-sm"></div>
+              <div className="absolute inset-1 rounded-xl bg-gray-950 flex items-center justify-center font-bold text-brand-400 font-mono text-xl">
+                N
+              </div>
+            </div>
+            <p className="text-xs font-mono text-brand-400 tracking-widest uppercase animate-pulse">Initializing NxtWave Sprint Portal...</p>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col justify-between relative selection:bg-brand-500 selection:text-gray-950">
+          
+          {/* STICKY COUNTDOWN & 500 SEATS PROGRESS BANNER */}
+          <div className="bg-gradient-to-r from-emerald-950 via-gray-900 to-cyan-950 border-b border-emerald-500/30 px-4 py-2 text-xs text-white sticky top-0 z-50 backdrop-blur-xl">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">National Engineering AI Sprint</span>
+                <span className="text-gray-300 hidden md:inline">• Free Workshop</span>
+              </div>
+
+              {/* 500 SEATS PROGRESS TICKER */}
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-center">
+                <div className="flex items-center gap-2 bg-gray-950/80 px-3 py-1 rounded-full border border-emerald-500/30 text-[11px]">
+                  <span className="text-gray-300">Target Goal:</span>
+                  <span className="font-mono font-bold text-emerald-400">{registeredCount} / {TOTAL_TARGET_SEATS} Signups</span>
+                  <div className="w-16 bg-gray-800 h-2 rounded-full overflow-hidden hidden sm:block border border-gray-700">
+                    <div className="bg-gradient-to-r from-brand-500 to-brand-accent h-full transition-all duration-500" style={{ width: `${(registeredCount / TOTAL_TARGET_SEATS) * 100}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 font-mono font-bold text-brand-400">
+                  <span className="bg-gray-950/80 px-2 py-0.5 rounded border border-gray-800">{timeLeft.days}d</span>:
+                  <span className="bg-gray-950/80 px-2 py-0.5 rounded border border-gray-800">{timeLeft.hours}h</span>:
+                  <span className="bg-gray-950/80 px-2 py-0.5 rounded border border-gray-800">{timeLeft.minutes}m</span>:
+                  <span className="bg-gray-950/80 px-2 py-0.5 rounded border border-gray-800 text-emerald-400">{timeLeft.seconds}s</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Header */}
+          <nav className="border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-2xl px-6 py-4">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-brand-500 to-brand-accent flex items-center justify-center font-black text-gray-950 text-base shadow-lg shadow-brand-500/20">
+                  N
+                </div>
+                <div>
+                  <span className="font-semibold text-sm tracking-tight text-gray-200">NxtWave CCBP 4.0</span>
+                  <span className="block text-[10px] text-brand-400 font-mono">Official AI Sprint Masterclass</span>
+                </div>
+              </div>
+
+              {/* Layout Mode Toggles */}
+              <div className="flex bg-gray-900 p-1 rounded-xl border border-gray-800 text-xs overflow-x-auto max-w-full">
+                <button 
+                  onClick={() => setLayoutMode('bento')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition whitespace-nowrap ${layoutMode === 'bento' ? 'bg-brand-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  Overview & Quiz
+                </button>
+                <button 
+                  onClick={() => setLayoutMode('tracker')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition whitespace-nowrap ${layoutMode === 'tracker' ? 'bg-brand-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  🍩 Brownie Tracker
+                </button>
+                <button 
+                  onClick={() => setLayoutMode('leaderboard')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition whitespace-nowrap ${layoutMode === 'leaderboard' ? 'bg-brand-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  🏆 Leaderboard
+                </button>
+                <button 
+                  onClick={() => setLayoutMode('timeline')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition whitespace-nowrap ${layoutMode === 'timeline' ? 'bg-brand-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  Syllabus
+                </button>
+                <button 
+                  onClick={() => setLayoutMode('impact')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition whitespace-nowrap ${layoutMode === 'impact' ? 'bg-brand-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  Placements
+                </button>
+                <button 
+                  onClick={() => setLayoutMode('socials')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition whitespace-nowrap ${layoutMode === 'socials' ? 'bg-brand-500 text-gray-950' : 'text-gray-400 hover:text-white'}`}>
+                  🌐 Socials & Links
+                </button>
+              </div>
+
+              {/* Scarcity & Brownie Points Badges */}
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setShowCertModal(true)}
+                  className="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1.5">
+                  🎓 Preview Certificate
+                </button>
+                <div className="bg-amber-500/10 border border-amber-500/30 px-3.5 py-1.5 rounded-full flex items-center gap-2">
+                  <span className="text-amber-400 text-xs font-bold">🍩 {browniePoints} Pts</span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-mono font-bold">🔥 {streak}d</span>
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          {/* Main Content Workspace */}
+          <main className="max-w-6xl mx-auto px-6 py-10 w-full space-y-10">
+            
+            {/* Hero Header */}
+            <div className="text-center max-w-3xl mx-auto space-y-4">
+              <span className="inline-block text-xs font-bold uppercase tracking-widest text-brand-400 bg-brand-500/10 px-4 py-1.5 rounded-full border border-brand-500/20">
+                Open To All Engineering Streams • CS, Non-CS, Circuit & Core Branches
+              </span>
+              <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white leading-tight">
+                Build Your First AI App in <span className="gradient-text">60 Minutes</span>
+              </h1>
+              <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                No prior AI or coding background needed. Learn practical OpenAI API deployment tailored for your engineering branch.
+              </p>
+            </div>
+
+            {/* TAB: BENTO OVERVIEW & REGISTRATION */}
+            {layoutMode === 'bento' && (
+              <div className="space-y-8">
+                
+                {/* SECTION BATCH CHALLENGE */}
+                <div className="bento-card p-6 rounded-3xl max-w-5xl mx-auto border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-gray-950 to-emerald-500/5 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-800/80 pb-4">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/20">
+                        🔥 Inter-Section Batch Challenge
+                      </span>
+                      <h3 className="text-lg font-bold text-white mt-1">Unlock AI Readiness Certificates for Your Section!</h3>
+                      <p className="text-xs text-gray-400">Get 30 classmates from your branch/section to sign up and unlock exclusive mentor feedback.</p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      {/* MYNTRA-STYLE SHARE ICON BUTTON */}
+                      <button 
+                        onClick={() => handleMyntraStyleShare({
+                          title: "Join My Section AI Challenge",
+                          text: `Classmates! Join ${formData.section} (${formData.branch || 'Engineering'}) for NxtWave's AI Building Sprint!`,
+                          url: `${window.location.origin}${window.location.pathname}?ref=${user ? user.code : 'NXT-SECTION'}`
+                        })}
+                        className="bg-gray-900 hover:bg-gray-800 text-white border border-gray-700 p-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs font-bold">
+                        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                        <span className="hidden sm:inline">Share</span>
+                      </button>
+
+                      <button 
+                        onClick={() => setShowCertModal(true)}
+                        className="bg-gradient-to-r from-amber-400 to-emerald-400 text-gray-950 font-bold px-4 py-2 rounded-xl text-xs hover:opacity-90 transition shadow-lg whitespace-nowrap">
+                        Preview Certificate 📜
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-300 font-bold">Your Section Status: <span className="text-brand-400">{formData.section} ({formData.branch || 'Engineering'})</span></span>
+                      <span className="font-mono text-emerald-400 font-bold">{sectionSignups} / 30 Signups</span>
+                    </div>
+                    <div className="w-full bg-gray-900 h-3 rounded-full overflow-hidden border border-gray-800 p-0.5">
+                      <div className="bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (sectionSignups / 30) * 100)}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Branch-Specific Project Selector */}
+                <div className="bento-card p-6 rounded-3xl max-w-5xl mx-auto border-brand-500/20 space-y-4">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <div>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Select Your Engineering Branch</h3>
+                      <p className="text-xs text-gray-400">See the exact 60-minute AI application you will build for your discipline:</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 bg-gray-950 p-2 rounded-2xl border border-gray-800 text-xs">
+                    {Object.keys(branchIdeas).map(b => (
+                      <button 
+                        key={b} 
+                        onClick={() => setSelectedBranch(b)}
+                        className={`px-3 py-1.5 rounded-xl font-semibold transition ${selectedBranch === b ? 'bg-brand-500 text-gray-950 shadow-md font-bold' : 'text-gray-400 hover:text-white hover:bg-gray-900'}`}>
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* PROJECT PREVIEW CARD WITH MYNTRA-STYLE SHARE ACTION */}
+                  <div className="bg-gray-950/80 p-5 rounded-2xl border border-gray-800/80 space-y-3 relative group">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-mono text-brand-accent uppercase tracking-widest">60-Minute Target Build • {selectedBranch}</span>
+                      
+                      {/* MYNTRA PRODUCT SHARE STYLE BUTTON */}
+                      <button 
+                        onClick={() => handleMyntraStyleShare({
+                          title: `Target AI Build for ${selectedBranch}`,
+                          text: `Check out the AI project for ${selectedBranch}: "${branchIdeas[selectedBranch].title}". Build it live in 60 mins!`,
+                          url: `${window.location.origin}${window.location.pathname}?branch=${encodeURIComponent(selectedBranch)}`
+                        })}
+                        className="bg-gray-900 hover:bg-gray-800 text-gray-300 hover:text-white border border-gray-800 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                        <span>Share Project Card</span>
+                      </button>
+                    </div>
+
+                    <p className="text-base font-bold text-white">{branchIdeas[selectedBranch].title}</p>
+                    <p className="text-xs text-gray-400 leading-relaxed">{branchIdeas[selectedBranch].desc}</p>
+                  </div>
+                </div>
+
+                {/* Main Grid: Registration Form vs Daily Quiz */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                  
+                  {/* REGISTRATION CARD */}
+                  <div className="md:col-span-6 bento-card p-8 rounded-3xl space-y-6">
+                    {!user ? (
+                      <form onSubmit={handleRegister} className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h2 className="text-xl font-bold text-white">Reserve Your Free Spot</h2>
+                            <p className="text-xs text-gray-400">Free Workshop Pass • Open to All Streams</p>
+                          </div>
+
+                          <label className="flex items-center gap-2 cursor-pointer bg-gray-950 p-1.5 rounded-xl border border-gray-800">
+                            <input 
+                              type="checkbox" 
+                              checked={formData.isCR} 
+                              onChange={e => setFormData({...formData, isCR: e.target.checked})}
+                              className="sr-only peer"/>
+                            <div className="w-8 h-4 bg-gray-800 rounded-full peer peer-checked:bg-brand-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all relative"></div>
+                            <span className="text-[10px] font-bold text-amber-400 uppercase">CR Mode</span>
+                          </label>
+                        </div>
+
+                        {formData.isCR && (
+                          <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl text-xs text-amber-300">
+                            🏆 <strong>Class Rep Special Mode:</strong> Lead your section to 30 signups to unlock an exclusive batch mentor session!
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</label>
+                            <input type="text" required placeholder="Atreyee Bhattacharyya" value={formData.name} onChange={e => { setFormData({...formData, name: e.target.value}); setPreviewName(e.target.value || 'Atreyee Bhattacharyya'); }} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500"/>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Engineering College</label>
+                            <input type="text" required placeholder="Ramaiah Institute of Technology" value={formData.college} onChange={e => setFormData({...formData, college: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500"/>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Branch</label>
+                              <input type="text" required placeholder="Medical Elec / Mech / ECE..." value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500"/>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Section</label>
+                              <select value={formData.section} onChange={e => setFormData({...formData, section: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500">
+                                <option>Sec A</option>
+                                <option>Sec B</option>
+                                <option>Sec C</option>
+                                <option>Sec D</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">WhatsApp</label>
+                              <input type="tel" required placeholder="9876543210" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500"/>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button type="submit" className="w-full bg-gradient-to-r from-brand-500 to-brand-accent text-gray-950 font-bold py-3.5 rounded-xl hover:opacity-90 transition text-xs tracking-wide shadow-lg shadow-brand-500/20">
+                          {formData.isCR ? 'Register as Class Representative (+100 Pts) ⚡' : 'Register Free & Join Workshop (+50 Pts) ⚡'}
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="bg-emerald-500/10 border border-emerald-500/30 p-5 rounded-2xl">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Seat Confirmed</span>
+                            {user.isCR && <span className="bg-amber-500/20 text-amber-400 text-[10px] px-2 py-0.5 rounded font-bold">CR Leader Pass</span>}
+                          </div>
+                          <h3 className="text-2xl font-bold text-white">{user.name}</h3>
+                          <p className="text-xs text-gray-400">{user.college} ({user.branch} - {user.section})</p>
+                        </div>
+
+                        {/* MYNTRA-STYLE MULTI-OPTION SHARE SUITE */}
+                        <div className="bg-gray-950 p-4 rounded-2xl border border-gray-800 space-y-3">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-white">Share Your Pass Link</span>
+                            <span className="text-[10px] text-amber-400 font-mono">+50 Pts per signup</span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            {/* Option 1: WhatsApp Direct Share */}
+                            <a 
+                              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hey guys! NxtWave is hosting a free 60-Minute AI App Building Workshop tailored for our branch (${user.branch || 'Engineering'}). Let's get our section (${user.section}) to 30 signups to unlock AI Readiness Certificates! Join using my link: ${window.location.origin}${window.location.pathname}?ref=${user.code}`)}`}
+                              target="_blank"
+                              className="text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+                              <span>WhatsApp</span>
+                            </a>
+
+                            {/* Option 2: Myntra-style Web Share API */}
+                            <button 
+                              onClick={() => handleMyntraStyleShare({
+                                title: user?.isCR ? "Class Representative AI Pass" : "60-Min AI Masterclass Pass",
+                                text: `Join me in NxtWave's AI workshop for ${user.branch || 'Engineering'} students!`,
+                                url: `${window.location.origin}${window.location.pathname}?ref=${user.code}`
+                              })}
+                              className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2.5 rounded-xl text-xs transition border border-gray-700 flex items-center justify-center gap-1.5">
+                              <svg className="w-3.5 h-3.5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                              </svg>
+                              <span>More Share Options</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-xs font-medium text-gray-400">Your Unique Pass Link</label>
+                          <div className="flex gap-2">
+                            <input type="text" readOnly value={`${window.location.origin}${window.location.pathname}?ref=${user.code}`} className="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-brand-accent font-mono"/>
+                            <button 
+                              onClick={() => copyToClipboard(`${window.location.origin}${window.location.pathname}?ref=${user.code}`, "Referral pass link copied!")}
+                              className="bg-brand-500 hover:bg-brand-400 text-gray-950 font-bold px-3 py-2 rounded-xl text-xs transition">
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dynamic Daily Quiz Card */}
+                  <div className="md:col-span-6 bento-card p-8 rounded-3xl flex flex-col justify-between">
+                    <div className="space-y-5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-brand-accent uppercase tracking-widest bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
+                          📅 Today's Challenge: {todayQuiz.day}
+                        </span>
+                        <span className="text-xs font-mono text-amber-400 font-bold">+50 Points</span>
+                      </div>
+
+                      <div className="bg-gray-950/80 p-5 rounded-2xl border border-gray-800 space-y-4">
+                        <p className="text-xs font-semibold text-white leading-relaxed">{todayQuiz.q}</p>
+                        
+                        <div className="space-y-2">
+                          {todayQuiz.options.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleDailyQuizSubmit(opt)}
+                              disabled={quizAnsweredToday}
+                              className={`w-full p-2.5 rounded-xl border text-xs text-left font-mono transition ${
+                                selectedOption === opt
+                                  ? opt === todayQuiz.correct ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold' : 'bg-red-500/20 border-red-500 text-red-400'
+                                  : quizAnsweredToday && opt === todayQuiz.correct ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold' : 'bg-gray-900 border-gray-800 text-gray-300 hover:border-gray-700'
+                              }`}>
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+
+                        {quizAnsweredToday && (
+                          <div className="pt-1 text-[11px] text-center font-semibold text-emerald-400">
+                            ✓ Today's Challenge Completed! Next challenge unlocks tomorrow at midnight.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-gray-800/80">
+                      <p className="text-[11px] text-gray-400 text-center font-medium">Earn +50 Brownie Points for every daily quiz solved!</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PRE-WORKSHOP Q&A PREVIEW BOARD */}
+                <div className="bento-card p-8 rounded-3xl max-w-5xl mx-auto space-y-6">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Ask the Instructor (Pre-Workshop Q&A)</h3>
+                    <p className="text-xs text-gray-400">Submit your questions in advance. Top voted questions get answered live!</p>
+                  </div>
+
+                  <form onSubmit={handleAddQuestion} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ask a technical or career question for the live instructor..." 
+                      value={newQuestion}
+                      onChange={e => setNewQuestion(e.target.value)}
+                      className="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-500"/>
+                    <button type="submit" className="bg-brand-500 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-brand-400 transition">
+                      Post (+25 Pts)
+                    </button>
+                  </form>
+
+                  <div className="space-y-3 pt-2">
+                    {qaList.map((item, idx) => (
+                      <div key={idx} className="bg-gray-950/70 p-3.5 rounded-2xl border border-gray-800/80 flex justify-between items-start text-xs">
+                        <div>
+                          <p className="font-semibold text-gray-200">"{item.q}"</p>
+                          <p className="text-[10px] text-gray-500 mt-1">— {item.name} ({item.college})</p>
+                        </div>
+                        <span className="text-[10px] bg-brand-500/10 text-brand-400 px-2 py-0.5 rounded font-mono">Queued</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: OFFICIAL SOCIAL HANDLES & WEB LINKS */}
+            {layoutMode === 'socials' && (
+              <div className="bento-card p-8 rounded-3xl max-w-4xl mx-auto space-y-8">
+                <div className="border-b border-gray-800 pb-4">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    🌐 Connect with NxtWave Official
+                  </h2>
+                  <p className="text-xs text-gray-400">Follow official channels for masterclass announcements, placement drives, and tech updates.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  
+                  {/* Official Google Site / Web Portal */}
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg mb-2">
+                        🌐
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider block">Web Portal</span>
+                      <p className="text-sm font-bold text-white mt-1">Official Website</p>
+                      <p className="text-[11px] text-gray-400">Explore CCBP 4.0 Programs</p>
+                    </div>
+                    <a href="https://www.nxtwave.tech" target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
+                      Visit Website ↗
+                    </a>
+                  </div>
+
+                  {/* LinkedIn */}
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-lg mb-2">
+                        💼
+                      </div>
+                      <span className="text-[10px] font-mono text-blue-400 uppercase tracking-wider block">LinkedIn</span>
+                      <p className="text-sm font-bold text-white mt-1">NxtWave</p>
+                      <p className="text-[11px] text-gray-400">Placement & Alumni Stories</p>
+                    </div>
+                    <a href="https://www.linkedin.com/company/nxtwavetech" target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded-xl text-xs transition border border-gray-700">
+                      Follow LinkedIn ↗
+                    </a>
+                  </div>
+
+                  {/* Facebook */}
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg mb-2">
+                        📘
+                      </div>
+                      <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-wider block">Facebook</span>
+                      <p className="text-sm font-bold text-white mt-1">NxtWave Community</p>
+                      <p className="text-[11px] text-gray-400">Events & Student Groups</p>
+                    </div>
+                    <a href="https://www.facebook.com/nxtwavetech" target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded-xl text-xs transition border border-gray-700">
+                      Visit Facebook ↗
+                    </a>
+                  </div>
+
+                  {/* X / Twitter */}
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-gray-500/20 text-gray-300 flex items-center justify-center font-bold text-lg mb-2">
+                        🐦
+                      </div>
+                      <span className="text-[10px] font-mono text-gray-300 uppercase tracking-wider block">X / Twitter</span>
+                      <p className="text-sm font-bold text-white mt-1">@nxtwavetech</p>
+                      <p className="text-[11px] text-gray-400">Tech News & Updates</p>
+                    </div>
+                    <a href="https://x.com/nxtwavetech" target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded-xl text-xs transition border border-gray-700">
+                      Follow @nxtwavetech ↗
+                    </a>
+                  </div>
+
+                </div>
+
+                {/* Admissions Call Line */}
+                <div className="bg-gray-950 p-6 rounded-2xl border border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div>
+                    <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">Direct Student Helpline</span>
+                    <h4 className="text-base font-bold text-white">+91 8008919090</h4>
+                    <p className="text-xs text-gray-400">Call for workshop registration assistance or CCBP program details.</p>
+                  </div>
+                  <a href="tel:8008919090" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition whitespace-nowrap">
+                    Call Helpline Now
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: BROWNIE POINT DASHBOARD & REWARDS SHOP */}
+            {layoutMode === 'tracker' && (
+              <div className="bento-card p-8 rounded-3xl max-w-4xl mx-auto space-y-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-800 pb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Your Brownie Points Dashboard</h2>
+                    <p className="text-xs text-gray-400">Earn points daily by completing micro-challenges and referring classmates.</p>
+                  </div>
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl text-right">
+                    <span className="text-xs text-gray-400 uppercase tracking-wider block">TOTAL BALANCE</span>
+                    <span className="text-3xl font-black text-amber-400 flex items-center gap-2 justify-end">
+                      🍩 {browniePoints} Pts
+                    </span>
+                  </div>
+                </div>
+
+                {/* Redeemable Perks Grid */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider">UNLOCKED PLACEMENT PERKS</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Perk 1: Top 50 AI Resume Prompts PDF */}
+                    <div className={`p-6 rounded-2xl border transition-all duration-300 flex flex-col justify-between ${
+                      browniePoints >= 50 
+                        ? 'bg-emerald-500/10 border-emerald-500/40 shadow-xl shadow-emerald-500/5' 
+                        : 'bg-gray-950/60 border-gray-800/80 opacity-70'
+                    }`}>
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="text-sm font-bold text-white">Top 50 AI Resume Prompts PDF</h4>
+                          <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">50 Pts</span>
+                        </div>
+                        <p className="text-xs text-gray-400 leading-relaxed mb-6">
+                          Copy-paste prompt templates tailored for technical engineering interviews.
+                        </p>
+                      </div>
+
+                      {browniePoints >= 50 ? (
+                        <button 
+                          onClick={() => handleRedeemPerk(50, "Top 50 AI Resume Prompts PDF", "pdf")}
+                          className="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold py-3 rounded-xl text-xs transition transform active:scale-[0.98] shadow-lg shadow-emerald-500/20">
+                          Download Reward
+                        </button>
+                      ) : (
+                        <div className="w-full bg-gray-900 border border-gray-800 text-gray-500 font-medium py-3 rounded-xl text-xs text-center">
+                          Locked ({50 - browniePoints} Pts Needed)
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Perk 2: 1-on-1 Mentor Resume Audit */}
+                    <div className={`p-6 rounded-2xl border transition-all duration-300 flex flex-col justify-between ${
+                      browniePoints >= 150 
+                        ? 'bg-emerald-500/10 border-emerald-500/40 shadow-xl shadow-emerald-500/5' 
+                        : 'bg-gray-950/60 border-gray-800/80 opacity-70'
+                    }`}>
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="text-sm font-bold text-white">1-on-1 Mentor Resume Audit</h4>
+                          <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">150 Pts</span>
+                        </div>
+                        <p className="text-xs text-gray-400 leading-relaxed mb-6">
+                          Direct feedback on your GitHub repository and resume projects from NxtWave mentors.
+                        </p>
+                      </div>
+
+                      {browniePoints >= 150 ? (
+                        <button 
+                          onClick={() => handleRedeemPerk(150, "1-on-1 Mentor Resume Audit", "audit")}
+                          className="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold py-3 rounded-xl text-xs transition transform active:scale-[0.98] shadow-lg shadow-emerald-500/20">
+                          Claim Audit Slot
+                        </button>
+                      ) : (
+                        <div className="w-full bg-gray-900 border border-gray-800 text-gray-500 font-medium py-3 rounded-xl text-xs text-center">
+                          Locked ({150 - browniePoints} Pts Needed)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <p className="text-xs text-gray-400">Need more points? Complete daily quiz challenges or invite classmates.</p>
+                  <button 
+                    onClick={() => updatePoints(50)}
+                    className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold px-4 py-2 rounded-xl transition">
+                    +50 Pts Simulator Boost 🚀
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: INTER-COLLEGE LIVE LEADERBOARD */}
+            {layoutMode === 'leaderboard' && (
+              <div className="bento-card p-8 rounded-3xl max-w-4xl mx-auto space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      🏆 Inter-College National Campus Standings
+                    </h2>
+                    <p className="text-xs text-gray-400">Rankings based on total student workshop registrations & campus engagement points.</p>
+                  </div>
+                  <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs px-3 py-1 rounded-full font-mono font-bold">
+                    Live Updates Active
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {collegesLeaderboard.map((item, index) => (
+                    <div 
+                      key={index} 
+                      className={`p-4 rounded-2xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition ${
+                        item.rank === 1 ? 'bg-gradient-to-r from-amber-500/10 via-gray-950 to-gray-950 border-amber-500/40' :
+                        item.rank === 2 ? 'bg-gradient-to-r from-gray-400/10 via-gray-950 to-gray-950 border-gray-400/30' :
+                        item.rank === 3 ? 'bg-gradient-to-r from-amber-700/10 via-gray-950 to-gray-950 border-amber-700/30' : 'bg-gray-950 border-gray-800'
+                      }`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-extrabold text-xs font-mono ${
+                          item.rank === 1 ? 'bg-amber-400 text-gray-950' :
+                          item.rank === 2 ? 'bg-gray-300 text-gray-950' :
+                          item.rank === 3 ? 'bg-amber-700 text-white' : 'bg-gray-800 text-gray-400'
+                        }`}>
+                          #{item.rank}
+                        </span>
+                        <div>
+                          <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                            {item.name}
+                            <span className="text-[10px] bg-brand-500/10 text-brand-400 px-2 py-0.5 rounded font-normal">{item.badge}</span>
+                          </h4>
+                          <p className="text-xs text-gray-400 mt-0.5">{item.signups} Engineering Students Registered</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                        <span className="text-sm font-extrabold text-amber-400 font-mono">{item.points.toLocaleString()} Pts</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: 60-MINUTE TIMELINE CURRICULUM */}
+            {layoutMode === 'timeline' && (
+              <div className="bento-card p-8 rounded-3xl max-w-4xl mx-auto space-y-8">
+                <div className="border-b border-gray-800 pb-4">
+                  <h2 className="text-xl font-bold text-white">60-Minute Workshop Syllabus & Milestones</h2>
+                  <p className="text-xs text-gray-400">What you will build and deploy step-by-step:</p>
+                </div>
+
+                <div className="space-y-6">
+                  {[
+                    { time: "Minute 00 - 15", title: "LLMs & OpenAI API Key Management", desc: "Understand how generative models work, prompt parameters, and API key security." },
+                    { time: "Minute 15 - 40", title: "Building the AI Application Logic", desc: "Connect front-end inputs to OpenAI's GPT API using asynchronous JavaScript / Python endpoints." },
+                    { time: "Minute 40 - 55", title: "Deployment to Netlify / Vercel", desc: "Publish your working web application live to a custom domain and GitHub repository." },
+                    { time: "Minute 55 - 60", title: "Placement Resume Integration", desc: "Format project details into ATS-compliant bullet points for technical job applications." }
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex gap-4 items-start bg-gray-950/60 p-4 rounded-2xl border border-gray-800">
+                      <span className="bg-brand-500/10 border border-brand-500/30 text-brand-400 font-mono text-xs px-3 py-1 rounded-lg font-bold whitespace-nowrap">
+                        {item.time}
+                      </span>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{item.title}</h4>
+                        <p className="text-xs text-gray-400 mt-1">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: PLACEMENT IMPACT SHOWCASE */}
+            {layoutMode === 'impact' && (
+              <div className="bento-card p-8 rounded-3xl max-w-4xl mx-auto space-y-8">
+                <div className="border-b border-gray-800 pb-4">
+                  <h2 className="text-xl font-bold text-white">NxtWave Student Placement Metrics</h2>
+                  <p className="text-xs text-gray-400">Proven outcomes from CCBP 4.0 Academy programs:</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 text-center">
+                    <p className="text-2xl font-extrabold text-emerald-400">1,500+</p>
+                    <p className="text-xs text-gray-400 mt-1">Hiring Companies Partnered</p>
+                  </div>
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 text-center">
+                    <p className="text-2xl font-extrabold text-cyan-400">4.5 - 18 LPA</p>
+                    <p className="text-xs text-gray-400 mt-1">Salary Package Range</p>
+                  </div>
+                  <div className="bg-gray-950 p-5 rounded-2xl border border-gray-800 text-center">
+                    <p className="text-2xl font-extrabold text-purple-400">Non-CS → Tech</p>
+                    <p className="text-xs text-gray-400 mt-1">Successful Career Transitions</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* STUDENT CERTIFICATE PREVIEW MODAL */}
+          {showCertModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <div className="bento-card p-8 rounded-3xl max-w-xl w-full border-brand-500/40 text-center space-y-6 relative overflow-hidden">
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                  <span className="text-xs font-mono font-bold text-emerald-400 uppercase">NxtWave CCBP 4.0 Official Certificate</span>
+                  <button onClick={() => setShowCertModal(false)} className="text-gray-400 hover:text-white text-lg font-bold">✕</button>
+                </div>
+
+                {/* Certificate Mockup Canvas */}
+                <div className="bg-slate-900 border-4 border-amber-500/40 p-6 rounded-2xl text-slate-100 space-y-3 relative shadow-2xl">
+                  <div className="text-xs font-bold uppercase tracking-widest text-amber-400">Certificate of Completion</div>
+                  <p className="text-[11px] text-gray-400">This certifies that</p>
+                  <h3 className="text-2xl font-black text-white underline decoration-emerald-500 decoration-2">{previewName || 'Atreyee Bhattacharyya'}</h3>
+                  <p className="text-[11px] text-gray-300">has successfully built and deployed an AI Application during the</p>
+                  <p className="text-xs font-bold text-emerald-400 uppercase">National 60-Minute AI Sprint Masterclass</p>
+                  
+                  <div className="pt-4 flex justify-between items-end text-[10px] text-gray-500 font-mono border-t border-gray-800 mt-2">
+                    <div>Verified ID: NXT-AI-2026-REG</div>
+                    <div>NxtWave CCBP 4.0 Academy</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400">Complete the 60-minute workshop to receive your verified digital certificate for LinkedIn!</p>
+                  <button 
+                    onClick={() => setShowCertModal(false)}
+                    className="w-full bg-emerald-500 text-gray-950 font-bold py-2.5 rounded-xl text-xs hover:bg-emerald-400 transition">
+                    Got It, Reserve My Spot!
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* POST-REGISTRATION WHATSAPP COMMUNITY GROUP MODAL */}
+          {showWpGroupModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+              <div className="bento-card p-8 rounded-3xl max-w-md w-full border-emerald-500/50 text-center space-y-5">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-3xl mx-auto animate-bounce">
+                  💬
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">Step 2 of 2 Required</span>
+                  <h3 className="text-xl font-bold text-white mt-2">Join Official Workshop WhatsApp Group</h3>
+                  <p className="text-xs text-gray-300 mt-2 leading-relaxed">
+                    To receive your live workshop meeting link, API keys, and resource PDFs, click below to join the official batch group:
+                  </p>
+                </div>
+
+                <a 
+                  href="https://chat.whatsapp.com/NxtWaveAISprint2026" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  onClick={() => setShowWpGroupModal(false)}
+                  className="block w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-extrabold py-3.5 rounded-xl text-xs transition shadow-xl shadow-emerald-500/20">
+                  Join Official Batch Group Now 🚀
+                </a>
+
+                <button 
+                  onClick={() => setShowWpGroupModal(false)}
+                  className="text-[11px] text-gray-500 hover:text-gray-300 underline">
+                  I'll join later
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* REWARD CLAIM POPUP MODAL */}
+          {activeModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <div className="bento-card p-6 rounded-3xl max-w-md w-full border-emerald-500/40 text-center space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-2xl mx-auto">
+                  🎉
+                </div>
+                <h3 className="text-lg font-bold text-white">{activeModal.title} Claimed!</h3>
+                <p className="text-xs text-gray-300 leading-relaxed bg-gray-950 p-4 rounded-2xl border border-gray-800">
+                  {activeModal.message}
+                </p>
+                <button 
+                  onClick={() => setActiveModal(null)}
+                  className="w-full bg-emerald-500 text-gray-950 font-bold py-2.5 rounded-xl text-xs hover:bg-emerald-400 transition">
+                  Awesome, Got It!
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* INSTANT MYNTRA SHARE TOAST NOTIFICATION */}
+          {shareNotice && (
+            <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 toast-anim">
+              <div className="bg-emerald-500 text-gray-950 font-extrabold px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2 text-xs">
+                <span>✓</span>
+                <span>{shareNotice}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Live Social Proof Toast */}
+          {currentToast && (
+            <div className="fixed bottom-6 right-6 z-50 toast-anim">
+              <div className="bg-gray-900/90 border border-brand-500/40 backdrop-blur-xl p-4 rounded-2xl shadow-2xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs">
+                  ✓
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">{currentToast.name} registered!</p>
+                  <p className="text-[10px] text-gray-400">{currentToast.college} • {currentToast.time}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <footer className="border-t border-gray-900 py-6 text-center text-xs text-gray-600 space-y-2">
+            <div>NxtWave CCBP 4.0 Growth Challenge Simulation</div>
+            <div className="flex justify-center gap-4 text-[11px] text-gray-500">
+              <a href="https://www.nxtwave.tech" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400">Official Website</a>
+              <span>•</span>
+              <a href="https://www.linkedin.com/company/nxtwavetech" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400">LinkedIn</a>
+              <span>•</span>
+              <a href="https://www.facebook.com/nxtwavetech" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400">Facebook</a>
+              <span>•</span>
+              <a href="https://x.com/nxtwavetech" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400">X (Twitter)</a>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
